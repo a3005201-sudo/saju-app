@@ -175,6 +175,9 @@ export default function App() {
                 />
               </div>
             </div>
+            <p className="mt-1 mb-3 text-center text-[11px] text-slate-500 dark:text-slate-400">
+              이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.
+            </p>
             <div className="mb-4">
               <LinkShareButtons
                 shareUrl={((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined)?.trim()) || (typeof window !== 'undefined' ? window.location.origin : '[Vercel 주소]')}

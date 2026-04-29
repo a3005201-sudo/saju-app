@@ -17,6 +17,7 @@ const AI_TARGETS = [
   { key: 'grok', label: 'Grok', url: 'https://grok.com/' },
 ]
 const DEFAULT_AFFILIATE_URL = 'https://link.coupang.com/a/exgqrr'
+const AI_REDIRECT_DELAY_MS = 3500
 
 function stripAffiliateBlock(text: string) {
   const blockedPatterns = [
@@ -123,7 +124,7 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
           } catch {
             window.open(aiUrl, targetName)
           }
-        }, 250)
+        }, AI_REDIRECT_DELAY_MS)
         aiWin.focus()
       } else {
         alert(`${aiLabel} 창이 팝업 차단으로 열리지 않았습니다. 이 사이트의 팝업을 허용해주세요.`)
@@ -149,9 +150,9 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
           href={effectiveAffiliateUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`rounded border border-amber-400/80 bg-amber-50 px-2 py-1 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`rounded border border-amber-500 bg-amber-100 px-2 py-1 font-semibold text-amber-950 hover:bg-amber-200 dark:border-amber-500 dark:bg-amber-900/60 dark:text-amber-50 dark:hover:bg-amber-800/70 ${compact ? 'text-xs' : 'text-sm'}`}
         >
-          쿠팡 열기
+          쿠팡에서 파는 사주풀이 서적 구입하기
         </a>
       )}
       {visibleTargets.map((ai) => (
