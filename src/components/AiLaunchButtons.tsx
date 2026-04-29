@@ -16,6 +16,7 @@ const AI_TARGETS = [
   { key: 'claude', label: 'Claude', url: 'https://claude.ai/new' },
   { key: 'grok', label: 'Grok', url: 'https://grok.com/' },
 ]
+const DEFAULT_AFFILIATE_URL = 'https://link.coupang.com/a/exgqrr'
 
 function stripAffiliateBlock(text: string) {
   const blockedPatterns = [
@@ -78,6 +79,7 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const visibleTargets = targets ? AI_TARGETS.filter((ai) => targets.includes(ai.key as 'chatgpt' | 'gemini' | 'claude' | 'grok')) : AI_TARGETS
+  const effectiveAffiliateUrl = affiliateUrl?.trim() || DEFAULT_AFFILIATE_URL
 
   async function copyOnly() {
     const text = await getText()
@@ -110,20 +112,18 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
 
       // 사용자 액션 클릭 문맥 안에서 같은 named window를 재사용해야 팝업 차단 가능성을 낮출 수 있다.
       const targetName = 'orrery-ai-window'
-      const firstUrl = affiliateUrl || aiUrl
+      const firstUrl = effectiveAffiliateUrl
       const aiWin = window.open(firstUrl, targetName)
       if (aiWin && !aiWin.closed) {
-        if (affiliateUrl) {
-          // 제휴 링크 로딩을 아주 짧게 보장한 뒤 같은 창을 AI 페이지로 전환
-          setTimeout(() => {
-            try {
-              aiWin.location.href = aiUrl
-              aiWin.focus()
-            } catch {
-              window.open(aiUrl, targetName)
-            }
-          }, 250)
-        }
+        // 제휴 링크 로딩을 아주 짧게 보장한 뒤 같은 창을 AI 페이지로 전환
+        setTimeout(() => {
+          try {
+            aiWin.location.href = aiUrl
+            aiWin.focus()
+          } catch {
+            window.open(aiUrl, targetName)
+          }
+        }, 250)
         aiWin.focus()
       } else {
         alert(`${aiLabel} 창이 팝업 차단으로 열리지 않았습니다. 이 사이트의 팝업을 허용해주세요.`)
@@ -144,9 +144,9 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
           {copied ? '복사됨 ✓' : (copyLabel ?? '종합 AI 해석 복사')}
         </button>
       )}
-      {affiliateUrl && (
+      {effectiveAffiliateUrl && (
         <a
-          href={affiliateUrl}
+          href={effectiveAffiliateUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={`rounded border border-amber-400/80 bg-amber-50 px-2 py-1 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50 ${compact ? 'text-xs' : 'text-sm'}`}
