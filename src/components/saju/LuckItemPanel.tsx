@@ -17,6 +17,9 @@ interface Props {
   onLinksChange?: (links: { bestItemUrl: string }) => void
 }
 
+const API_TIMEOUT_MS = 7000
+const COUPANG_DISCLOSURE = '이 포스트는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정 수수료를 제공받을 수 있습니다.'
+
 function toSafeNumber(value: unknown, fallback = 0): number {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? n : fallback
@@ -50,26 +53,38 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
 
   useEffect(() => {
     let mounted = true
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
     setLoading(true)
     setError(null)
     setProducts([])
 
-    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
-    if (isGitHubPages) {
+    const applyFallback = () => {
+      if (!mounted) return
       const fallbackProducts = buildFallbackProducts(weakElement)
       setProducts(fallbackProducts)
       setFallbackMode(true)
-      setLegalNotice('이 포스트는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정 수수료를 제공받을 수 있습니다.')
+      setLegalNotice(COUPANG_DISCLOSURE)
       onLinksChange?.({ bestItemUrl: fallbackProducts[0]?.shortUrl ?? '' })
+    }
+
+    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+    if (isGitHubPages) {
+      applyFallback()
       setLoading(false)
       return () => {
         mounted = false
+        clearTimeout(timeoutId)
+        controller.abort()
       }
     }
 
-    fetch(`/api/coupang/recommend-products?element=${weakElement}`)
+    fetch(`/api/coupang/recommend-products?element=${weakElement}`, { signal: controller.signal })
       .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text())
+        const contentType = r.headers.get('content-type') || ''
+        if (!r.ok || !contentType.includes('application/json')) {
+          throw new Error('Invalid recommendation API response')
+        }
         return r.json()
       })
       .then((data) => {
@@ -85,6 +100,10 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
           productRating: toSafeNumber(item.productRating, 0),
           productPrice: toSafeNumber(item.productPrice, 0),
         }))
+        if (list.length === 0) {
+          applyFallback()
+          return
+        }
         setProducts(list)
         setLegalNotice(data.legalNotice ?? '')
         setFallbackMode(!!data.fallback)
@@ -92,15 +111,21 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
       })
       .catch((e) => {
         if (!mounted) return
-        setError('추천 상품을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-        console.error(e)
+        console.warn('[LuckItemPanel] recommendation fallback activated:', e)
+        applyFallback()
+        setError(null)
       })
       .finally(() => {
-        if (mounted) setLoading(false)
+        if (mounted) {
+          clearTimeout(timeoutId)
+          setLoading(false)
+        }
       })
 
     return () => {
       mounted = false
+      clearTimeout(timeoutId)
+      controller.abort()
     }
   }, [weakElement, onLinksChange])
 

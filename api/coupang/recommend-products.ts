@@ -25,6 +25,23 @@ interface Product {
   rank?: number
 }
 
+function buildFallbackProducts(keywords: string[], trackingCode: string) {
+  return keywords.slice(0, 2).map((keyword, idx) => {
+    const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
+    return {
+      productId: Date.now() + idx,
+      productName: `${keyword} 추천 검색 바로가기`,
+      productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
+      productUrl: url,
+      shortUrl: url,
+      productPrice: 0,
+      productRating: 0,
+      isRocket: false,
+      isFreeShipping: false,
+    }
+  })
+}
+
 function signAuthorization(method: string, pathWithQuery: string, accessKey: string, secretKey: string) {
   const [path, query = ''] = pathWithQuery.split('?')
   const datetime = new Date().toISOString()
@@ -78,13 +95,21 @@ export default async function handler(req: any, res: any) {
   const trackingCode = process.env.COUPANG_TRACKING_CODE || 'AF2449492'
   const fixedAffiliateUrl = process.env.VITE_FIXED_AFFILIATE_URL || 'https://link.coupang.com/a/exgqrr'
 
-  if (!accessKey || !secretKey || !partnersId) {
-    res.status(500).json({ error: 'COUPANG env is not configured' })
-    return
-  }
-
   const element = (req.query.element || 'tree') as ElementKey
   const keywords = ELEMENT_KEYWORDS[element] ?? ELEMENT_KEYWORDS.tree
+
+  if (!accessKey || !secretKey || !partnersId) {
+    const fallbackProducts = buildFallbackProducts(keywords, trackingCode)
+    res.status(200).json({
+      element,
+      products: fallbackProducts,
+      bestLink: fixedAffiliateUrl || fallbackProducts[0]?.shortUrl || '',
+      fallback: true,
+      reason: 'COUPANG env is not configured',
+      legalNotice: COUPANG_PARTNERS_DISCLOSURE,
+    })
+    return
+  }
 
   try {
     const gathered: Product[] = []
@@ -120,20 +145,7 @@ export default async function handler(req: any, res: any) {
     )
 
     if (withShortUrl.length === 0) {
-      const fallbackProducts = keywords.slice(0, 2).map((keyword, idx) => {
-        const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
-        return {
-          productId: Date.now() + idx,
-          productName: `${keyword} 추천 검색 바로가기`,
-          productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
-          productUrl: url,
-          shortUrl: url,
-          productPrice: 0,
-          productRating: 0,
-          isRocket: false,
-          isFreeShipping: false,
-        }
-      })
+      const fallbackProducts = buildFallbackProducts(keywords, trackingCode)
       res.status(200).json({
         element,
         products: fallbackProducts,
@@ -152,20 +164,7 @@ export default async function handler(req: any, res: any) {
       legalNotice: COUPANG_PARTNERS_DISCLOSURE,
     })
   } catch (error) {
-    const fallbackProducts = keywords.slice(0, 2).map((keyword, idx) => {
-      const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
-      return {
-        productId: Date.now() + idx,
-        productName: `${keyword} 추천 검색 바로가기`,
-        productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
-        productUrl: url,
-        shortUrl: url,
-        productPrice: 0,
-        productRating: 0,
-        isRocket: false,
-        isFreeShipping: false,
-      }
-    })
+    const fallbackProducts = buildFallbackProducts(keywords, trackingCode)
     res.status(200).json({
       element,
       products: fallbackProducts,
