@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 export default defineConfig({
-  base: '/',
+  base: '/saju-app/',
   server: {
     port: 5173,
     strictPort: true,
