@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 interface Props {
   getText: () => string | Promise<string>
-  /** 선택: 별도 버튼으로만 열기 (AI 실행 시 자동으로 쿠팡 창을 띄우지 않음) */
+  /** 선택: AI 실행 전에 먼저 여는 제휴 링크 */
   affiliateUrl?: string
   compact?: boolean
   copyLabel?: string
@@ -93,8 +93,8 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
 
   /**
    * 1) 먼저 명식 텍스트를 클립보드에 넣고
-   * 2) AI 탭만 연다.
-   * 쿠팡은 자동 팝업하지 않음.
+   * 2) 제휴 링크를 같은 팝업창으로 먼저 연 뒤
+   * 3) 같은 창을 AI 주소로 덮어쓴다.
    * 추가 안전장치로 복사 직전에 쿠팡 관련 문구/링크를 제거한다.
    */
   async function launchTo(aiLabel: string, aiUrl: string, key: string) {
@@ -108,8 +108,22 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
       }
       await copyText(cleaned)
 
-      const aiWin = window.open(aiUrl, 'orrery-ai-window')
+      // 사용자 액션 클릭 문맥 안에서 같은 named window를 재사용해야 팝업 차단 가능성을 낮출 수 있다.
+      const targetName = 'orrery-ai-window'
+      const firstUrl = affiliateUrl || aiUrl
+      const aiWin = window.open(firstUrl, targetName)
       if (aiWin && !aiWin.closed) {
+        if (affiliateUrl) {
+          // 제휴 링크 로딩을 아주 짧게 보장한 뒤 같은 창을 AI 페이지로 전환
+          setTimeout(() => {
+            try {
+              aiWin.location.href = aiUrl
+              aiWin.focus()
+            } catch {
+              window.open(aiUrl, targetName)
+            }
+          }, 250)
+        }
         aiWin.focus()
       } else {
         alert(`${aiLabel} 창이 팝업 차단으로 열리지 않았습니다. 이 사이트의 팝업을 허용해주세요.`)

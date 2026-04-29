@@ -153,6 +153,7 @@ export default function App() {
               </div>
               <div className="flex justify-center lg:pb-1">
                 <AiLaunchButtons
+                  affiliateUrl={bestItemUrl || ((import.meta.env.VITE_FIXED_AFFILIATE_URL as string | undefined)?.trim() || undefined)}
                   getText={async () => {
                     const saju = calculateSaju(birthInput)
                     const parts = [sajuToText(saju)]
