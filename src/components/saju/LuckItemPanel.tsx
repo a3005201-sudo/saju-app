@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { SajuResult } from '@orrery/core/types'
-import { detectWeakElement, ELEMENT_LABEL, type FiveElement, type LuckItem } from '../../utils/luck-items.ts'
+import {
+  detectWeakElement,
+  ELEMENT_LABEL,
+  ELEMENT_SEARCH_KEYWORDS,
+  type FiveElement,
+  type LuckItem,
+} from '../../utils/luck-items.ts'
 
 interface RecommendedProduct extends LuckItem {
   shortUrl: string
@@ -16,6 +22,24 @@ function toSafeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+function buildFallbackProducts(element: FiveElement): RecommendedProduct[] {
+  const trackingCode = 'AF2449492'
+  return (ELEMENT_SEARCH_KEYWORDS[element] ?? ELEMENT_SEARCH_KEYWORDS.tree).slice(0, 2).map((keyword, idx) => {
+    const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
+    return {
+      productId: Number(`9${Date.now()}${idx}`),
+      productName: `${keyword} 추천 검색 바로가기`,
+      productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
+      productUrl: url,
+      shortUrl: url,
+      productPrice: 0,
+      productRating: 0,
+      isRocket: false,
+      isFreeShipping: false,
+    }
+  })
+}
+
 export default function LuckItemPanel({ result, onLinksChange }: Props) {
   const weakElement = useMemo<FiveElement>(() => detectWeakElement(result.pillars), [result.pillars])
   const [loading, setLoading] = useState(true)
@@ -29,6 +53,19 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
     setLoading(true)
     setError(null)
     setProducts([])
+
+    const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+    if (isGitHubPages) {
+      const fallbackProducts = buildFallbackProducts(weakElement)
+      setProducts(fallbackProducts)
+      setFallbackMode(true)
+      setLegalNotice('이 포스트는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정 수수료를 제공받을 수 있습니다.')
+      onLinksChange?.({ bestItemUrl: fallbackProducts[0]?.shortUrl ?? '' })
+      setLoading(false)
+      return () => {
+        mounted = false
+      }
+    }
 
     fetch(`/api/coupang/recommend-products?element=${weakElement}`)
       .then(async (r) => {
@@ -55,7 +92,8 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
       })
       .catch((e) => {
         if (!mounted) return
-        setError(e instanceof Error ? e.message : String(e))
+        setError('추천 상품을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        console.error(e)
       })
       .finally(() => {
         if (mounted) setLoading(false)
