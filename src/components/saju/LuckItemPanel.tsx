@@ -7,6 +7,10 @@ import {
   type FiveElement,
   type LuckItem,
 } from '../../utils/luck-items.ts'
+import {
+  COUPANG_FIXED_AFFILIATE_URL,
+  isCoupangAffiliateUrl,
+} from '../../constants/affiliate.ts'
 
 interface RecommendedProduct extends LuckItem {
   shortUrl: string
@@ -26,21 +30,19 @@ function toSafeNumber(value: unknown, fallback = 0): number {
 }
 
 function buildFallbackProducts(element: FiveElement): RecommendedProduct[] {
-  const trackingCode = 'AF2449492'
-  return (ELEMENT_SEARCH_KEYWORDS[element] ?? ELEMENT_SEARCH_KEYWORDS.tree).slice(0, 2).map((keyword, idx) => {
-    const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
-    return {
-      productId: Number(`9${Date.now()}${idx}`),
-      productName: `${keyword} 추천 검색 바로가기`,
-      productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
-      productUrl: url,
-      shortUrl: url,
-      productPrice: 0,
-      productRating: 0,
-      isRocket: false,
-      isFreeShipping: false,
-    }
-  })
+  // GitHub Pages 등 API 불가 환경: 일반 검색 URL이 아니라 제휴 링크로 쿠키가 심히게 한다.
+  const url = COUPANG_FIXED_AFFILIATE_URL
+  return (ELEMENT_SEARCH_KEYWORDS[element] ?? ELEMENT_SEARCH_KEYWORDS.tree).slice(0, 2).map((keyword, idx) => ({
+    productId: Number(`9${Date.now()}${idx}`),
+    productName: `${keyword} 추천 바로가기`,
+    productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
+    productUrl: url,
+    shortUrl: url,
+    productPrice: 0,
+    productRating: 0,
+    isRocket: false,
+    isFreeShipping: false,
+  }))
 }
 
 export default function LuckItemPanel({ result, onLinksChange }: Props) {
@@ -65,7 +67,8 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
       setProducts(fallbackProducts)
       setFallbackMode(true)
       setLegalNotice(COUPANG_DISCLOSURE)
-      onLinksChange?.({ bestItemUrl: fallbackProducts[0]?.shortUrl ?? '' })
+      // AI 버튼 쿠키 심기용: 반드시 link.coupang.com 제휴 링크
+      onLinksChange?.({ bestItemUrl: COUPANG_FIXED_AFFILIATE_URL })
     }
 
     const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
@@ -107,7 +110,10 @@ export default function LuckItemPanel({ result, onLinksChange }: Props) {
         setProducts(list)
         setLegalNotice(data.legalNotice ?? '')
         setFallbackMode(!!data.fallback)
-        onLinksChange?.({ bestItemUrl: data.bestLink ?? list[0]?.shortUrl ?? '' })
+        const candidate = data.bestLink ?? list[0]?.shortUrl ?? ''
+        onLinksChange?.({
+          bestItemUrl: isCoupangAffiliateUrl(candidate) ? candidate : COUPANG_FIXED_AFFILIATE_URL,
+        })
       })
       .catch((e) => {
         if (!mounted) return

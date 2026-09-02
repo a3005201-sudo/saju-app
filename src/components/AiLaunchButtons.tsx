@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { COUPANG_FIXED_AFFILIATE_URL, isCoupangAffiliateUrl } from '../constants/affiliate.ts'
 
 interface Props {
   getText: () => string | Promise<string>
@@ -16,7 +17,7 @@ const AI_TARGETS = [
   { key: 'claude', label: 'Claude', url: 'https://claude.ai/new' },
   { key: 'grok', label: 'Grok', url: 'https://grok.com/' },
 ]
-const DEFAULT_AFFILIATE_URL = 'https://link.coupang.com/a/exgqrr'
+const DEFAULT_AFFILIATE_URL = COUPANG_FIXED_AFFILIATE_URL
 const AI_REDIRECT_DELAY_MS = 3500
 
 function stripAffiliateBlock(text: string) {
@@ -80,7 +81,10 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const visibleTargets = targets ? AI_TARGETS.filter((ai) => targets.includes(ai.key as 'chatgpt' | 'gemini' | 'claude' | 'grok')) : AI_TARGETS
-  const effectiveAffiliateUrl = affiliateUrl?.trim() || DEFAULT_AFFILIATE_URL
+  // 일반 쿠팡 URL이면 쿠키가 안 심히므로 무조건 link.coupang.com 만 사용
+  const effectiveAffiliateUrl = isCoupangAffiliateUrl(affiliateUrl)
+    ? affiliateUrl!.trim()
+    : DEFAULT_AFFILIATE_URL
 
   async function copyOnly() {
     const text = await getText()

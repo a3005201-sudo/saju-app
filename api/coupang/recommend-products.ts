@@ -25,15 +25,16 @@ interface Product {
   rank?: number
 }
 
-function buildFallbackProducts(keywords: string[], trackingCode: string) {
+function buildFallbackProducts(keywords: string[], _trackingCode: string) {
+  // 검색 URL은 제휴 쿠키가 안 심히므로 고정 파트너스 링크를 사용한다.
+  const affiliate = process.env.VITE_FIXED_AFFILIATE_URL || 'https://link.coupang.com/a/exgqrr'
   return keywords.slice(0, 2).map((keyword, idx) => {
-    const url = `https://www.coupang.com/np/search?q=${encodeURIComponent(keyword)}&channel=user&subId=${encodeURIComponent(trackingCode)}`
     return {
       productId: Date.now() + idx,
-      productName: `${keyword} 추천 검색 바로가기`,
+      productName: `${keyword} 추천 바로가기`,
       productImage: 'https://img1a.coupangcdn.com/image/coupang/common/logo_coupang_w350.png',
-      productUrl: url,
-      shortUrl: url,
+      productUrl: affiliate,
+      shortUrl: affiliate,
       productPrice: 0,
       productRating: 0,
       isRocket: false,

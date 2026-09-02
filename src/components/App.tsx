@@ -17,6 +17,7 @@ import { createChart } from '@orrery/core/ziwei'
 import { calculateNatal } from '@orrery/core/natal'
 import { sajuToText, ziweiToText, natalToText } from '../utils/text-export.ts'
 import type { BirthInput } from '@orrery/core/types'
+import { COUPANG_FIXED_AFFILIATE_URL, isCoupangAffiliateUrl } from '../constants/affiliate.ts'
 
 type Tab = 'saju' | 'ziwei' | 'natal'
 
@@ -153,7 +154,11 @@ export default function App() {
               </div>
               <div className="flex justify-center lg:pb-1">
                 <AiLaunchButtons
-                  affiliateUrl={bestItemUrl || ((import.meta.env.VITE_FIXED_AFFILIATE_URL as string | undefined)?.trim() || undefined)}
+                  affiliateUrl={
+                    isCoupangAffiliateUrl(bestItemUrl)
+                      ? bestItemUrl
+                      : COUPANG_FIXED_AFFILIATE_URL
+                  }
                   getText={async () => {
                     const saju = calculateSaju(birthInput)
                     const parts = [sajuToText(saju)]
