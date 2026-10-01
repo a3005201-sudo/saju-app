@@ -1,6 +1,8 @@
 import crypto from 'node:crypto'
 
-import { COUPANG_PARTNERS_DISCLOSURE } from '../../src/constants/disclosures.ts'
+// Vercel 함수 번들에는 src/가 포함되지 않으므로 src/constants/disclosures.ts와 같은 문구를 여기에 둔다.
+const COUPANG_PARTNERS_DISCLOSURE =
+  '본 페이지의 일부 상품 추천에는 쿠팡 파트너스 활동이 포함되어 있으며, 이에 따른 일정 수수료를 제공받을 수 있습니다.'
 
 type ElementKey = 'tree' | 'fire' | 'earth' | 'metal' | 'water'
 
