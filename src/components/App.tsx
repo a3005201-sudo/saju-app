@@ -29,14 +29,22 @@ export default function App() {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [externalFormState, setExternalFormState] = useState<SavedFormState | null>(null)
   const birthFormRef = useRef<BirthFormHandle>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
 
-  function handleSubmit(input: BirthInput) {
+  function handleSubmit(input: BirthInput, opts?: { manual?: boolean }) {
     setBirthInput(input)
+    if (opts?.manual) {
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+    }
   }
 
   useEffect(() => {
     // 모바일에서 새 접속 시 항상 상단부터 시작
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [])
+
+  const handleLuckLinkChange = useCallback(({ bestItemUrl: url }: { bestItemUrl: string }) => {
+    setBestItemUrl(url)
   }, [])
 
   const getCurrentFormState = useCallback(() => {
@@ -58,6 +66,59 @@ export default function App() {
     '공통 규칙: 쉬운 한국어, 근거(명식 요소)를 짧게 포함, 과장/단정 금지.',
   ].join('\n')
   const copyVersionTag = '[ORRERY_COPY_2026-04-29_1416]'
+
+  const tabClass = (active: boolean) =>
+    `flex-1 sm:flex-none px-3 sm:px-5 py-2 text-sm sm:text-base font-semibold whitespace-nowrap rounded-lg transition-colors ${
+      active
+        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-amber-200 shadow-sm'
+        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+    }`
+
+  const aiPanel = birthInput && (
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm">
+      <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">🤖 AI에게 내 사주 쉽게 풀이 받기 (무료)</h2>
+      <ol className="mt-2 space-y-1 text-sm sm:text-[15px] text-slate-600 dark:text-slate-300">
+        <li><b className="text-slate-900 dark:text-slate-100">1.</b> 아래에서 쓰고 싶은 AI 버튼을 누르세요. (내 사주 정보가 자동 복사돼요)</li>
+        <li><b className="text-slate-900 dark:text-slate-100">2.</b> 열린 AI 채팅창을 <b>길게 눌러 &lsquo;붙여넣기&rsquo;</b> 후 보내기</li>
+        <li><b className="text-slate-900 dark:text-slate-100">3.</b> AI가 보여주는 메뉴에서 궁금한 번호(재물운, 연애운 등)를 고르면 끝!</li>
+      </ol>
+      <div className="mt-4">
+        <AiLaunchButtons
+          variant="large"
+          affiliateUrl={
+            isCoupangAffiliateUrl(bestItemUrl)
+              ? bestItemUrl
+              : COUPANG_FIXED_AFFILIATE_URL
+          }
+          getText={async () => {
+            const saju = calculateSaju(birthInput)
+            const parts = [sajuToText(saju)]
+            if (!birthInput.unknownTime) {
+              const chart = createChart(
+                birthInput.year, birthInput.month, birthInput.day,
+                birthInput.hour,
+                birthInput.minute,
+                birthInput.gender === 'M',
+                birthInput.timezone,
+                birthInput.longitude,
+              )
+              parts.push(ziweiToText(chart))
+            }
+            const natal = await calculateNatal(birthInput)
+            parts.push(natalToText(natal))
+            return `${copyVersionTag}\n${aiPromptHeader}\n\n${parts.join('\n\n')}`
+          }}
+        />
+      </div>
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        모바일에서 붙여넣기가 링크만 들어가면 &lsquo;해석용 글만 복사하기&rsquo;를 누른 뒤 다시 붙여넣어 주세요.
+      </p>
+      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+        이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.
+      </p>
+    </section>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50 to-amber-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-gray-900 dark:text-gray-100 relative">
       <ThemeToggle />
@@ -67,7 +128,7 @@ export default function App() {
         href="https://github.com/rath/orrery"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed top-0 right-0 z-50"
+        className="fixed top-0 right-0 z-50 hidden sm:block"
         aria-label="View source on GitHub"
       >
         <svg width="60" height="60" viewBox="0 0 250 250" className="fill-gray-700 text-white" aria-hidden="true">
@@ -76,18 +137,31 @@ export default function App() {
           <path d="M115 115c-.1.1 3.7 1.5 4.8.4l13.9-13.8c3.2-2.4 6.2-3.2 8.5-3 -8.4-10.6-14.7-24.2 1.6-40.6 4.7-4.6 10.2-6.8 15.9-7 .6-1.6 3.5-7.4 11.7-10.9 0 0 4.7 2.4 7.4 16.1 4.3 2.4 8.4 5.6 12.1 9.2 3.6 3.6 6.8 7.8 9.2 12.2 13.7 2.6 16.2 7.3 16.2 7.3-3.6 8.2-9.4 11.1-10.9 11.7-.3 5.8-2.4 11.2-7.1 15.9-16.4 16.4-29.4 11.6-36.4 8.8 .2 2.8-1 6.8-5 10.8L141 136.5c-1.2 1.2.6 5.4.8 5.3z" fill="currentColor" />
         </svg>
       </a>
-      <main className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 py-6 sm:py-8">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl leading-[1.05] font-black bg-gradient-to-r from-slate-900 via-blue-900 to-amber-500 dark:from-slate-100 dark:via-blue-200 dark:to-amber-300 bg-clip-text text-transparent tracking-tight">
+      <main className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-10 py-5 sm:py-8">
+        <div className="text-center mb-4 sm:mb-8">
+          <h1 className="text-4xl sm:text-7xl lg:text-8xl leading-[1.1] font-black bg-gradient-to-r from-slate-900 via-blue-900 to-amber-500 dark:from-slate-100 dark:via-blue-200 dark:to-amber-300 bg-clip-text text-transparent tracking-tight">
             {t('app.mainTitle')}
           </h1>
-          <p className="mt-3 text-base sm:text-2xl font-bold text-amber-700 dark:text-amber-300">
+          <p className="mt-2 sm:mt-3 text-[15px] sm:text-2xl font-bold text-amber-700 dark:text-amber-300">
             {t('app.mainTitleSub')}
           </p>
-          <p className="mt-3 text-base sm:text-lg text-slate-600 dark:text-slate-300 tracking-wide">
-            {t('app.subtitle1')}<br className="sm:hidden" /> <span className="font-medium text-gray-700 dark:text-gray-200">{t('app.subtitle.tool')}</span> {t('app.subtitle2')}
+          <p className="hidden sm:block mt-3 text-lg text-slate-600 dark:text-slate-300 tracking-wide">
+            {t('app.subtitle1')} <span className="font-medium text-gray-700 dark:text-gray-200">{t('app.subtitle.tool')}</span> {t('app.subtitle2')}
           </p>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-1">{t('app.subtitle3')}</p>
+          <p className="hidden sm:block text-base text-slate-500 dark:text-slate-400 mt-1">{t('app.subtitle3')}</p>
+          <ol className="mt-4 mx-auto grid max-w-xl grid-cols-3 gap-1.5 sm:gap-3 text-left">
+            {[
+              { n: '1', title: '생년월일 입력', desc: '시간 몰라도 OK' },
+              { n: '2', title: '내 사주 보기', desc: '성격·오행·운 요약' },
+              { n: '3', title: 'AI로 쉽게 풀이', desc: '재물·연애·올해운' },
+            ].map(step => (
+              <li key={step.n} className="rounded-xl border border-amber-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-2 py-2 sm:px-3">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">{step.n}</span>
+                <p className="mt-1 text-[13px] sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{step.title}</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 leading-tight">{step.desc}</p>
+              </li>
+            ))}
+          </ol>
         </div>
         <BirthForm
           ref={birthFormRef}
@@ -108,94 +182,45 @@ export default function App() {
           </button>
         </div>
 
-        <Guide />
-
         {birthInput && (
-          <>
-            <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-700 dark:bg-amber-900/20 px-3 py-2 text-center">
-              <p className="text-sm sm:text-base font-semibold text-amber-800 dark:text-amber-300">
-                결과 쉽게 보기: <span className="underline decoration-amber-500 decoration-2 underline-offset-2">AI 버튼을 누르면 해석용 글이 먼저 복사되고 ChatGPT 등이 열립니다</span>. 채팅창에 붙여넣을 때는 <span className="underline decoration-amber-500 decoration-2 underline-offset-2">전체가 들어가는지</span> 확인해 주세요(모바일은 링크만 잡히는 경우가 있어, 필요하면 「종합 AI 해석 복사」 후 붙여넣기).
-              </p>
+          <div ref={resultRef} className="scroll-mt-3">
+            <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mt-6 mb-4 sm:inline-flex">
+              <button className={tabClass(tab === 'saju')} onClick={() => setTab('saju')}>
+                {t('app.tab.saju')}
+              </button>
+              <button className={tabClass(tab === 'ziwei')} onClick={() => setTab('ziwei')}>
+                {t('app.tab.ziwei')}
+              </button>
+              <button className={tabClass(tab === 'natal')} onClick={() => setTab('natal')}>
+                {t('app.tab.natal')}
+              </button>
             </div>
 
-            {/* 탭 + AI + 쿠팡 링크 (같은 라인) */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-center border-b border-amber-200 dark:border-slate-700 mt-6 mb-4 gap-2">
-              <div className="flex items-center">
-                <button
-                  className={`px-2 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    tab === 'saju'
-                      ? 'border-amber-500 text-slate-900 dark:border-amber-300 dark:text-amber-200'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                  onClick={() => setTab('saju')}
-                >
-                  {t('app.tab.saju')}
-                </button>
-                <button
-                  className={`px-2 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    tab === 'ziwei'
-                      ? 'border-amber-500 text-slate-900 dark:border-amber-300 dark:text-amber-200'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                  onClick={() => setTab('ziwei')}
-                >
-                  {t('app.tab.ziwei')}
-                </button>
-                <button
-                  className={`px-2 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    tab === 'natal'
-                      ? 'border-amber-500 text-slate-900 dark:border-amber-300 dark:text-amber-200'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                  onClick={() => setTab('natal')}
-                >
-                  {t('app.tab.natal')}
-                </button>
+            {tab === 'saju' && <SajuView input={birthInput} bestItemUrl={bestItemUrl} onLuckLinkChange={handleLuckLinkChange} aiPanel={aiPanel} />}
+            {tab === 'ziwei' && (
+              <div className="space-y-5">
+                {aiPanel}
+                <ZiweiView input={birthInput} />
               </div>
-              <div className="flex justify-center lg:pb-1">
-                <AiLaunchButtons
-                  affiliateUrl={
-                    isCoupangAffiliateUrl(bestItemUrl)
-                      ? bestItemUrl
-                      : COUPANG_FIXED_AFFILIATE_URL
-                  }
-                  getText={async () => {
-                    const saju = calculateSaju(birthInput)
-                    const parts = [sajuToText(saju)]
-                    if (!birthInput.unknownTime) {
-                      const chart = createChart(
-                        birthInput.year, birthInput.month, birthInput.day,
-                        birthInput.hour,
-                        birthInput.minute,
-                        birthInput.gender === 'M',
-                        birthInput.timezone,
-                        birthInput.longitude,
-                      )
-                      parts.push(ziweiToText(chart))
-                    }
-                    const natal = await calculateNatal(birthInput)
-                    parts.push(natalToText(natal))
-                    return `${copyVersionTag}\n${aiPromptHeader}\n\n${parts.join('\n\n')}`
-                  }}
-                />
+            )}
+            {tab === 'natal' && (
+              <div className="space-y-5">
+                {aiPanel}
+                <NatalView input={birthInput} />
               </div>
-            </div>
-            <p className="mt-1 mb-3 text-center text-[11px] text-slate-500 dark:text-slate-400">
-              이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.
-            </p>
-            <div className="mb-4">
+            )}
+
+            <section className="mt-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <p className="mb-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-200">친구·가족에게도 무료 사주를 알려주세요</p>
               <LinkShareButtons
                 shareUrl={((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined)?.trim()) || (typeof window !== 'undefined' ? window.location.origin : '[Vercel 주소]')}
                 shareText="누구나 평생 무료 사주 - 사주팔자/자미두수/출생차트"
-                compact
               />
-            </div>
-
-            {tab === 'saju' && <SajuView input={birthInput} bestItemUrl={bestItemUrl} onLuckLinkChange={({ bestItemUrl: url }) => setBestItemUrl(url)} />}
-            {tab === 'ziwei' && <ZiweiView input={birthInput} />}
-            {tab === 'natal' && <NatalView input={birthInput} />}
-          </>
+            </section>
+          </div>
         )}
+
+        <Guide />
       </main>
       <footer className="text-center text-xs text-gray-400 dark:text-gray-500 py-6">
         <p>&copy; 2026 Jang-Ho Hwang &middot; <a href="https://x.com/xrath" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300">@xrath</a> &middot; <a href="https://x.com/xrath/status/2022548658562937028" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300">{t('app.intro')}</a></p>

@@ -25,7 +25,7 @@ export interface BirthFormHandle {
 }
 
 interface Props {
-  onSubmit: (input: BirthInput) => void
+  onSubmit: (input: BirthInput, opts?: { manual?: boolean }) => void
   externalState?: SavedFormState | null
   onExternalStateConsumed?: () => void
 }
@@ -98,6 +98,8 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
   const [longitudeInput, setLongitudeInput] = useState(() => formatCoordinate(initialLongitude))
   const [timezoneError, setTimezoneError] = useState<string | null>(null)
   const [autoCalcReady, setAutoCalcReady] = useState(false)
+  const [hasSubmitted, setHasSubmitted] = useState(!!saved)
+  const [showLocation, setShowLocation] = useState(false)
   const lastAutoSubmitKeyRef = useRef('')
 
   const inferredTimezone = useMemo(
@@ -269,7 +271,10 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
     setTimezoneError(null)
     onExternalStateConsumed?.()
     const birthInput = buildBirthInput(s)
-    if (birthInput) onSubmit(birthInput)
+    if (birthInput) {
+      setHasSubmitted(true)
+      onSubmit(birthInput, { manual: true })
+    }
   }, [externalState]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isKDT = useMemo(
@@ -309,7 +314,10 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
   function submitWithCurrentState(showValidationError: boolean) {
     const resolved = resolveCoordinates()
     if (!resolved) {
-      if (showValidationError) setTimezoneError(t('form.coordinateInvalid'))
+      if (showValidationError) {
+        setTimezoneError(t('form.coordinateInvalid'))
+        setShowLocation(true)
+      }
       return false
     }
 
@@ -321,7 +329,10 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
     }
     const validationError = getTimezoneValidationError(state)
     if (validationError) {
-      if (showValidationError) setTimezoneError(validationError)
+      if (showValidationError) {
+        setTimezoneError(validationError)
+        setShowLocation(true)
+      }
       return false
     }
 
@@ -334,9 +345,19 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
       }
       return false
     }
-    onSubmit(birthInput)
+    onSubmit(birthInput, { manual: showValidationError })
+    lastAutoSubmitKeyRef.current = submitKey(resolved.resolvedLatitude, resolved.resolvedLongitude)
     setAutoCalcReady(true)
+    setHasSubmitted(true)
     return true
+  }
+
+  function submitKey(resolvedLatitude: number, resolvedLongitude: number) {
+    return [
+      year, month, day, hour, minute, gender, unknownTime, jasiMethod,
+      calendarType, isLeapMonth,
+      manualCoords, resolvedLatitude, resolvedLongitude,
+    ].join('|')
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -345,33 +366,31 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
   }
 
   useEffect(() => {
+    if (!hasSubmitted) return
     const timer = setTimeout(() => {
       const resolved = resolveCoordinates()
       if (!resolved) return
-      const key = [
-        year, month, day, hour, minute, gender, unknownTime, jasiMethod,
-        calendarType, isLeapMonth,
-        manualCoords, resolved.resolvedLatitude, resolved.resolvedLongitude,
-      ].join('|')
-      if (lastAutoSubmitKeyRef.current === key) return
-      if (submitWithCurrentState(false)) {
-        lastAutoSubmitKeyRef.current = key
-      }
+      if (lastAutoSubmitKeyRef.current === submitKey(resolved.resolvedLatitude, resolved.resolvedLongitude)) return
+      submitWithCurrentState(false)
     }, 350)
     return () => clearTimeout(timer)
-  }, [year, month, day, hour, minute, gender, unknownTime, jasiMethod, calendarType, isLeapMonth, manualCoords, latitude, longitude, latitudeInput, longitudeInput]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasSubmitted, year, month, day, hour, minute, gender, unknownTime, jasiMethod, calendarType, isLeapMonth, manualCoords, latitude, longitude, latitudeInput, longitudeInput]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm dark:shadow-none">
-      <div className="flex flex-col items-center md:flex-row md:items-start gap-5">
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-sm dark:shadow-none">
+      <div className="flex flex-col items-center md:flex-row md:items-start gap-3 md:gap-5">
         {/* 로고 */}
-        <div className="flex flex-col items-center shrink-0">
+        <div className="hidden md:flex flex-col items-center shrink-0">
           <img
             src={logo}
             alt="혼천의"
-            className="w-48 md:w-64"
+            className="w-64"
           />
           <span className="text-base text-gray-400 dark:text-gray-500 font-hanja -mt-1">혼천의(渾天儀)</span>
+        </div>
+        <div className="md:hidden flex w-full items-center gap-2">
+          <img src={logo} alt="혼천의" className="w-12 h-12" />
+          <p className="text-base font-bold text-slate-800 dark:text-slate-100">내 생년월일을 입력하세요</p>
         </div>
 
         {/* 폼 필드 전체 */}
@@ -490,6 +509,9 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
                 <span className="text-sm text-gray-500 dark:text-gray-400">{t('form.unknown')}</span>
               </label>
             </div>
+            {!unknownTime && (
+              <p className="-mt-1 mb-2 text-xs text-gray-400 dark:text-gray-500">태어난 시간을 모르면 오른쪽 &lsquo;모름&rsquo;을 켜세요.</p>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
               <select
                 value={hour}
@@ -536,7 +558,29 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
 
           {/* 위치 */}
           <fieldset className="mt-4">
-            <legend className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{t('form.birthPlace')}</legend>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <legend className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t('form.birthPlace')}
+                {!showLocation && (
+                  <span className="ml-2 font-semibold text-gray-700 dark:text-gray-200">
+                    {manualCoords ? t('form.coordInput') : selectedCity ? formatCityName(selectedCity) : '-'}
+                  </span>
+                )}
+              </legend>
+              <button
+                type="button"
+                onClick={() => setShowLocation(v => !v)}
+                aria-expanded={showLocation}
+                className="text-sm font-medium text-amber-700 dark:text-amber-300"
+              >
+                {showLocation ? '접기 ▴' : '변경 ▾'}
+              </button>
+            </div>
+            {!showLocation && (
+              <p className="text-xs text-gray-400 dark:text-gray-500">다른 도시에서 태어났다면 &lsquo;변경&rsquo;을 눌러 고르면 더 정확해요.</p>
+            )}
+            {showLocation && (
+            <>
             <div className="inline-flex h-10 rounded-lg bg-gray-100 dark:bg-gray-800 p-1 mb-2">
               <button
                 type="button"
@@ -624,6 +668,8 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
                 )}
               </p>
             )}
+            </>
+            )}
             {timezoneError && (
               <div className="mt-2 px-3 py-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400 leading-relaxed">
                 {timezoneError}
@@ -682,25 +728,18 @@ const BirthForm = forwardRef<BirthFormHandle, Props>(function BirthForm({ onSubm
             </div>
           )}
 
-          <div className="mt-5 flex items-center justify-between gap-3">
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">
-              {autoCalcReady ? '입력 변경 시 자동으로 계산됩니다.' : '입력을 완료하면 자동 계산됩니다.'}
-            </p>
-            <button
-              type="button"
-              onClick={() => submitWithCurrentState(true)}
-              className="h-10 px-4 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300 active:scale-[0.98] transition-all"
-            >
-              수동 재계산
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="mt-5 w-full h-14 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg font-black shadow-md hover:from-amber-400 hover:to-orange-400 active:scale-[0.99] transition-all"
+          >
+            {hasSubmitted ? '🔮 이 정보로 다시 보기' : '🔮 내 사주 보기 (무료)'}
+          </button>
+          {autoCalcReady && (
+            <p className="mt-2 text-center text-xs text-emerald-700 dark:text-emerald-300">입력을 바꾸면 결과가 자동으로 다시 계산돼요.</p>
+          )}
 
-          <p className="mt-3 text-center text-sm text-gray-400 dark:text-gray-500 leading-relaxed">
-            🔒 {t('form.privacy1')}<br />
-            {t('form.privacy2')}
-          </p>
-          <p className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            입력하신 생년월일 정보는 서버에 저장되지 않으며, 브라우저 내에서 계산 후 즉시 파기됩니다
+          <p className="mt-3 text-center text-xs sm:text-sm text-gray-400 dark:text-gray-500 leading-relaxed">
+            🔒 {t('form.privacy1')} {t('form.privacy2')}
           </p>
         </div>
       </div>

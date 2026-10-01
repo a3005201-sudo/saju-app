@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { COUPANG_FIXED_AFFILIATE_URL, isCoupangAffiliateUrl } from '../constants/affiliate.ts'
+import AiBrandIcon, { type AiBrand } from './AiBrandIcon.tsx'
 
 interface Props {
   getText: () => string | Promise<string>
@@ -9,9 +10,10 @@ interface Props {
   copyLabel?: string
   hideCopy?: boolean
   targets?: Array<'chatgpt' | 'gemini' | 'claude' | 'grok'>
+  variant?: 'inline' | 'large'
 }
 
-const AI_TARGETS = [
+const AI_TARGETS: Array<{ key: AiBrand; label: string; url: string }> = [
   { key: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/' },
   { key: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app' },
   { key: 'claude', label: 'Claude', url: 'https://claude.ai/new' },
@@ -77,7 +79,7 @@ async function copyText(text: string) {
   }
 }
 
-export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLabel, hideCopy, targets }: Props) {
+export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLabel, hideCopy, targets, variant = 'inline' }: Props) {
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const visibleTargets = targets ? AI_TARGETS.filter((ai) => targets.includes(ai.key as 'chatgpt' | 'gemini' | 'claude' | 'grok')) : AI_TARGETS
@@ -138,6 +140,49 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
     }
   }
 
+  if (variant === 'large') {
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          {visibleTargets.map((ai) => (
+            <button
+              key={ai.key}
+              type="button"
+              onClick={() => launchTo(ai.label, ai.url, ai.key)}
+              className="h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-base font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-300 active:scale-[0.98] transition-all"
+            >
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-slate-200">
+                <AiBrandIcon brand={ai.key} className="w-[18px] h-[18px]" />
+              </span>
+              {loadingKey === ai.key ? '준비중...' : `${ai.label}로 풀이`}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {!hideCopy && (
+            <button
+              type="button"
+              onClick={copyOnly}
+              className="h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              {copied ? '복사됨 ✓ 원하는 AI 채팅창에 붙여넣으세요' : (copyLabel ?? '📋 해석용 글만 복사하기')}
+            </button>
+          )}
+          {effectiveAffiliateUrl && (
+            <a
+              href={effectiveAffiliateUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-amber-500 bg-amber-100 px-3 text-sm font-semibold text-amber-950 hover:bg-amber-200 dark:border-amber-500 dark:bg-amber-900/60 dark:text-amber-50 dark:hover:bg-amber-800/70"
+            >
+              📚 쿠팡에서 파는 사주풀이 서적 구입하기
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5">
       {!hideCopy && (
@@ -164,8 +209,11 @@ export default function AiLaunchButtons({ getText, affiliateUrl, compact, copyLa
           key={ai.key}
           type="button"
           onClick={() => launchTo(ai.label, ai.url, ai.key)}
-          className={`rounded px-2 py-1 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`inline-flex items-center gap-1 rounded px-2 py-1 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 ${compact ? 'text-xs' : 'text-sm'}`}
         >
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white">
+            <AiBrandIcon brand={ai.key} className="w-3 h-3" />
+          </span>
           {loadingKey === ai.key ? '준비중...' : ai.label}
         </button>
       ))}
