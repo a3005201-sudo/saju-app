@@ -8,6 +8,7 @@ import LinkShareButtons from './LinkShareButtons.tsx'
 import ThemeToggle from './ThemeToggle.tsx'
 import LanguageToggle from './LanguageToggle.tsx'
 import InstallAppButton from './InstallAppButton.tsx'
+import ReturnLuckSheet from './ReturnLuckSheet.tsx'
 import { useLocale } from '../i18n/index.ts'
 import SajuView from './saju/SajuView.tsx'
 import ZiweiView from './ziwei/ZiweiView.tsx'
@@ -30,6 +31,23 @@ export default function App() {
   const [externalFormState, setExternalFormState] = useState<SavedFormState | null>(null)
   const birthFormRef = useRef<BirthFormHandle>(null)
   const resultRef = useRef<HTMLDivElement>(null)
+  const aiLaunchedAtRef = useRef(0)
+  const [showReturnSheet, setShowReturnSheet] = useState(false)
+
+  useEffect(() => {
+    function handleReturn() {
+      if (document.visibilityState !== 'visible' || !aiLaunchedAtRef.current) return
+      if (Date.now() - aiLaunchedAtRef.current < 1500) return
+      aiLaunchedAtRef.current = 0
+      setShowReturnSheet(true)
+    }
+    document.addEventListener('visibilitychange', handleReturn)
+    window.addEventListener('focus', handleReturn)
+    return () => {
+      document.removeEventListener('visibilitychange', handleReturn)
+      window.removeEventListener('focus', handleReturn)
+    }
+  }, [])
 
   function handleSubmit(input: BirthInput, opts?: { manual?: boolean }) {
     setBirthInput(input)
@@ -78,13 +96,15 @@ export default function App() {
     <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-6 shadow-sm">
       <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">🤖 AI에게 내 사주 쉽게 풀이 받기 (무료)</h2>
       <ol className="mt-2 space-y-1 text-sm sm:text-[15px] text-slate-600 dark:text-slate-300">
-        <li><b className="text-slate-900 dark:text-slate-100">1.</b> 아래에서 쓰고 싶은 AI 버튼을 누르세요. (내 사주 정보가 자동 복사돼요)</li>
-        <li><b className="text-slate-900 dark:text-slate-100">2.</b> 열린 AI 채팅창을 <b>길게 눌러 &lsquo;붙여넣기&rsquo;</b> 후 보내기</li>
+        <li><b className="text-slate-900 dark:text-slate-100">1.</b> 평소 쓰는 AI 버튼을 누르세요. 내 사주 정보가 자동 복사되고, 휴대폰은 쓰던 AI 앱이 바로 열려요.</li>
+        <li><b className="text-slate-900 dark:text-slate-100">2.</b> AI 입력창을 <b>길게 눌러 &lsquo;붙여넣기&rsquo;</b> 후 보내기</li>
         <li><b className="text-slate-900 dark:text-slate-100">3.</b> AI가 보여주는 메뉴에서 궁금한 번호(재물운, 연애운 등)를 고르면 끝!</li>
       </ol>
       <div className="mt-4">
         <AiLaunchButtons
           variant="large"
+          textKey={JSON.stringify(birthInput)}
+          onLaunched={() => { aiLaunchedAtRef.current = Date.now() }}
           affiliateUrl={
             isCoupangAffiliateUrl(bestItemUrl)
               ? bestItemUrl
@@ -225,6 +245,12 @@ export default function App() {
       <footer className="text-center text-xs text-gray-400 dark:text-gray-500 py-6">
         <p>&copy; 2026 Jang-Ho Hwang &middot; <a href="https://x.com/xrath" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300">@xrath</a> &middot; <a href="https://x.com/xrath/status/2022548658562937028" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 dark:hover:text-gray-300">{t('app.intro')}</a></p>
       </footer>
+      <ReturnLuckSheet
+        open={showReturnSheet && !!birthInput}
+        onClose={() => setShowReturnSheet(false)}
+        luckItemsAnchorId={tab === 'saju' ? 'luck-items' : undefined}
+        affiliateUrl={isCoupangAffiliateUrl(bestItemUrl) ? bestItemUrl : COUPANG_FIXED_AFFILIATE_URL}
+      />
       <ProfileModal
         open={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
